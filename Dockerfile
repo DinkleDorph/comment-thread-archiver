@@ -1,21 +1,20 @@
 FROM ubuntu:24.04
 
 # Install Apache and PHP
-RUN apt update && apt install -y apache2 php libapache2-mod-php
+RUN apt update && apt install -y apache2 php8.3 libapache2-mod-php nano vim
 
 # Enable Apache mod_rewrite (optional but common)
 RUN a2enmod rewrite
 
-# Update DocumentRoot to point to /var/www/html/src
-# Create placeholder src/ folder to silence Apache warning (will be overwritten
+# Update DocumentRoot to point to /var/www/html/public
+# Create placeholder public folder to silence Apache warning (will be overwritten
 # by Podman mount at runtime)
-RUN mkdir -p /var/www/html/src && \
-    sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/src|' /etc/apache2/sites-available/000-default.conf && \
-    echo '<Directory /var/www/html/src>\n\
-    Options Indexes FollowSymLinks\n\
-    AllowOverride All\n\
-    Require all granted\n\
-</Directory>' >> /etc/apache2/apache2.conf
+RUN mkdir -p /var/www/html/public && \
+    sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|' /etc/apache2/sites-available/000-default.conf
+
+# Copy custom Apache config
+COPY custom-apache.conf /etc/apache2/conf-available/custom-apache.conf
+RUN a2enconf custom-apache
 
 # Install Composer
 RUN apt update && apt install -y curl php-cli unzip && \
