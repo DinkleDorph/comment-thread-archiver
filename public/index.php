@@ -39,7 +39,29 @@ Flight::route('/image', function () {
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
         "model" => "gpt-4.1-nano",
-        "input" => $prompt,
+        "input" => [
+            [
+                "role" => "user",
+                "content" => [
+                    [
+                        "type" => "input_text",
+                        "text" => $prompt,
+                    ],
+                    // [
+                    //     "type" => "input_image",
+                    //     "image_url" => __DIR__ . '/../Src/1.png',
+                    // ],
+                    // [
+                    //     "type" => "input_image",
+                    //     "image_url" => __DIR__ . '/../Src/2.png',
+                    // ],
+                    // [
+                    //     "type" => "input_image",
+                    //     "image_url" => __DIR__ . '/../Src/3.png',
+                    // ],
+                ],
+            ],
+        ],
     ]));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "Content-Type: application/json",
@@ -53,6 +75,8 @@ Flight::route('/image', function () {
     }
 
     curl_close($ch);
+
+    echo $result;
 });
 
 Flight::start();
