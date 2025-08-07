@@ -18,13 +18,22 @@ if ($_ENV['ENV'] !== 'production') {
     ini_set('display_errors', '0');
 }
 
-Flight::route('/', function () {
-    echo "<h1>Welcome</h1>";
-    echo "<p>Use the <code>/json</code> endpoint to get a JSON response.</p>";
-});
+// Set session lifetime
+ini_set('session.cookie_lifetime', 2592000); // 30 days
+ini_set('session.gc_maxlifetime', 2592000);
+session_start();
 
-Flight::route('/json', function () {
-    Flight::json(['hello' => 'world']);
+// Set up Twig
+$loader = new \Twig\Loader\FilesystemLoader(__DIR__ . '/../Src/Views');
+$twig = new \Twig\Environment($loader);
+
+// ---------- Routes ----------
+
+Flight::route('/', function () use ($twig) {
+    echo $twig->render('index.twig', [
+        'ENV' => $_ENV['ENV'],
+        'OPENAI_API_KEY_SET' => true,
+    ]);
 });
 
 Flight::route('/image', function () {

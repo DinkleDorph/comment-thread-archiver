@@ -1,7 +1,8 @@
 {
     "require": {
         "vlucas/phpdotenv": "*",
-        "flightphp/core": "^3.17"
+        "flightphp/core": "^3.17",
+        "twig/twig": "^3.0"
     },
     "autoload": {
         "psr-4": {
