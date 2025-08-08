@@ -37,11 +37,72 @@ Flight::route('/', function () use ($twig) {
 });
 
 Flight::route('/image', function () {
-    // Use prompt to contact OpenAI API, then upload each image in order
-    // Parse the JSON result from API, send back as response
-
     $prompt = file_get_contents(__DIR__ . '/../Prompt.md');
+    $images = glob(__DIR__ . '/../Src/*.png');
 
+    // Step 1: Start conversation with prompt
+    $responseData = sendOpenAiRequest([
+        [
+            "type" => "input_text",
+            "text" => $prompt,
+        ],
+    ]);
+    $responseId = $responseData['id'];
+
+    // Step 2: Batch images in groups of 10
+    $batches = array_chunk($images, 10);
+    foreach ($batches as $batchIndex => $batch) {
+        $content = [];
+
+        foreach ($batch as $i => $image) {
+            $imageData = base64_encode(file_get_contents($image));
+            $mimeType = mime_content_type($image);
+
+            $content[] = [
+                "type" => "input_image",
+                "image_url" => "data:$mimeType;base64,$imageData",
+            ];
+
+            $content[] = [
+                "type" => "input_text",
+                "text" => "Image " . ($i + 1 + ($batchIndex * 10)) . " of " . count($images),
+            ];
+        }
+
+        try {
+            $responseData = sendOpenAiRequest($content, $responseId);
+        } catch (Error) {
+            echo "<pre>";
+            print_r($responseData['output'][0]['content'][0]['text']);
+            echo "</pre>";
+        }
+        $responseId = $responseData['id'];
+    }
+
+    // Step 3: Final request to process everything
+    $responseData = sendOpenAiRequest(
+        [
+            [
+                "type" => "input_text",
+                "text" => "Now process all images together.",
+            ]
+        ],
+        $responseId,
+        "json_object",
+    );
+
+    echo "<pre>";
+    print_r($responseData['output'][0]['content'][0]['text']);
+    echo "</pre>";
+});
+
+Flight::start();
+
+function sendOpenAiRequest(
+    array $content,
+    ?string $responseId = null,
+    ?string $responseFormatType = null,
+): array {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "https://api.openai.com/v1/responses");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -51,24 +112,13 @@ Flight::route('/image', function () {
         "input" => [
             [
                 "role" => "user",
-                "content" => [
-                    [
-                        "type" => "input_text",
-                        "text" => $prompt,
-                    ],
-                    // [
-                    //     "type" => "input_image",
-                    //     "image_url" => __DIR__ . '/../Src/1.png',
-                    // ],
-                    // [
-                    //     "type" => "input_image",
-                    //     "image_url" => __DIR__ . '/../Src/2.png',
-                    // ],
-                    // [
-                    //     "type" => "input_image",
-                    //     "image_url" => __DIR__ . '/../Src/3.png',
-                    // ],
-                ],
+                "content" => $content,
+            ],
+        ],
+        "previous_response_id" => $responseId,
+        "text" => [
+            "format" => [
+                "type" => $responseFormatType ?? "text",
             ],
         ],
     ]));
@@ -80,12 +130,21 @@ Flight::route('/image', function () {
     $result = curl_exec($ch);
 
     if (curl_errno($ch)) {
-        echo 'Error:' . curl_error($ch);
+        throw new Error(curl_error($ch));
     }
 
     curl_close($ch);
 
-    echo $result;
-});
+    $result = trim($result); // remove any accidental whitespace
+    $response = json_decode($result, true);
 
-Flight::start();
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Error("JSON parse error: " . json_last_error_msg() . "\nRaw response:\n" . $result);
+    }
+
+    if (isset($response['error'])) {
+        throw new Error("OpenAI API error: " . $response['error']['message']);
+    }
+
+    return $response;
+}
