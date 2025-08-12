@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 # Install Apache and PHP
-RUN apt update && apt install -y apache2 php8.3 php-curl libapache2-mod-php nano vim
+RUN apt update && apt install -y apache2 php8.3 php-curl php-mbstring libapache2-mod-php nano vim
 
 # Enable Apache mod_rewrite (optional but common)
 RUN a2enmod rewrite
